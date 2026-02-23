@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [uploading, setUploading] = useState(false);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
 
-  // ✅ Upload function (uploads to Vercel Blob)
-  const uploadFile = async (file: File) => {
-    setUploading(true);
+  useEffect(() => {
+    fetch("/api/files")
+      .then((res) => res.json())
+      .then(setFiles);
+  }, []);
+
+  const uploadFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -20,48 +27,32 @@ export default function Home() {
 
     const data = await res.json();
 
-    setFileUrl(data.url);
-    setUploading(false);
-  };
+    await fetch("/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: data.url }),
+    });
 
-  // ✅ When user selects file
-  const handleChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (!e.target.files?.[0]) return;
-    await uploadFile(e.target.files[0]);
+    setFiles((prev) => [...prev, data.url]);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold">
-        📄 PDF Upload Storage
+    <main className="p-10">
+      <h1 className="text-2xl font-bold mb-4">
+        My PDF Storage
       </h1>
 
-      <input
-        type="file"
-        accept="application/pdf"
-        onChange={handleChange}
-        className="border p-2 rounded"
-      />
+      <input type="file" accept="application/pdf" onChange={uploadFile} />
 
-      {uploading && <p>Uploading...</p>}
-
-      {fileUrl && (
-        <div className="text-center">
-          <p className="text-green-600 font-medium">
-            ✅ Uploaded Successfully!
-          </p>
-
-          <a
-            href={fileUrl}
-            target="_blank"
-            className="text-blue-600 underline"
-          >
-            Open PDF
-          </a>
-        </div>
-      )}
-    </div>
+      <div className="mt-6">
+        {files.map((url, i) => (
+          <div key={i}>
+            <a href={url} target="_blank">
+              Open PDF {i + 1}
+            </a>
+          </div>
+        ))}
+      </div>
+    </main>
   );
 }
