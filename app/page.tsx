@@ -1,31 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState } from "react";
 
 export default function Home() {
-  // 1. Change to an Array [] instead of a single string ""
-  const [files, setFiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
 
-  // 2. Load existing files from your new API when the page opens
-  useEffect(() => {
-    async function loadFiles() {
-      try {
-        const res = await fetch("/api/list");
-        const data = await res.json();
-        setFiles(data); // This fills the list with your Vercel Blobs
-      } catch (error) {
-        console.error("Failed to load files", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadFiles();
-  }, []);
-
-  async function uploadFile(e: any) {
-    const file = e.target.files[0];
-    if (!file) return;
+  // ✅ Upload function (uploads to Vercel Blob)
+  const uploadFile = async (file: File) => {
+    setUploading(true);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -36,40 +19,49 @@ export default function Home() {
     });
 
     const data = await res.json();
-    
-    // 3. Instead of overwriting, add the new file to the existing list
-    setFiles((prev) => [data, ...prev]); 
-  }
+
+    setFileUrl(data.url);
+    setUploading(false);
+  };
+
+  // ✅ When user selects file
+  const handleChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (!e.target.files?.[0]) return;
+    await uploadFile(e.target.files[0]);
+  };
 
   return (
-    <div style={{ padding: 40, fontFamily: 'sans-serif' }}>
-      <h1>My PDF Storage</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-gray-100 p-6">
+      <h1 className="text-3xl font-bold">
+        📄 PDF Upload Storage
+      </h1>
 
-      <div style={{ marginBottom: 20, padding: 20, border: '1px dashed #ccc' }}>
-        <h3>Upload New PDF</h3>
-        <input type="file" accept="application/pdf" onChange={uploadFile} />
-      </div>
+      <input
+        type="file"
+        accept="application/pdf"
+        onChange={handleChange}
+        className="border p-2 rounded"
+      />
 
-      <hr />
+      {uploading && <p>Uploading...</p>}
 
-      <h2>Your Stored Files</h2>
-      
-      {loading && <p>Loading your PDFs...</p>}
+      {fileUrl && (
+        <div className="text-center">
+          <p className="text-green-600 font-medium">
+            ✅ Uploaded Successfully!
+          </p>
 
-      {/* 4. Loop through the array to show ALL files */}
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {files.length === 0 && !loading && <p>No files uploaded yet.</p>}
-        
-        {files.map((file, index) => (
-          <li key={index} style={{ marginBottom: 10, padding: 10, background: '#f4f4f4', borderRadius: 5 }}>
-            <strong>{file.pathname || "Uploaded File"}</strong> 
-            <br />
-            <a href={file.url} target="_blank" rel="noreferrer" style={{ color: 'blue' }}>
-              View PDF
-            </a>
-          </li>
-        ))}
-      </ul>
+          <a
+            href={fileUrl}
+            target="_blank"
+            className="text-blue-600 underline"
+          >
+            Open PDF
+          </a>
+        </div>
+      )}
     </div>
   );
 }
